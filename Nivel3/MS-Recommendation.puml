@@ -1,0 +1,41 @@
+@startuml MS-Recommendation
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+title Bolsa de Empleo - Nivel 3 (Componentes) - MS-Recommendation
+
+LAYOUT_TOP_DOWN()
+skinparam wrapWidth 190
+skinparam maxMessageSize 60
+
+Container(gateway, "API Gateway / BFF", "Backend", "Entrada única")
+ContainerQueue(broker, "Message Broker", "RabbitMQ/Kafka/Redis Streams", "Feedback por eventos (no REST)")
+
+Container_Boundary(s1, "MS-Recommendation") {
+  Component(ctrl, "Recommendation Controller", "REST Controller", "Obtiene recomendaciones")
+  Component(app, "Recommendation Application Service", "Service", "Orquesta ranking")
+  Component(rank, "Ranking Engine", "Component", "Ordena vacantes/cursos")
+  Component(pers, "Personalization Service", "Service", "Usa historial y preferencias")
+  Component(consumer, "Event Consumer", "Consumer", "Procesa clicks, guardados, feedback")
+  Component(persist, "Persistence Adapter", "Repository", "Recommendation, UserPreference, InteractionHistory")
+}
+
+ContainerDb(recoDb, "reco_db", "PostgreSQL", "Recomendaciones, preferencias, interacciones")
+
+Rel(gateway, ctrl, "Invoca", "REST")
+Rel(ctrl, app, "Usa")
+Rel(app, pers, "Personaliza")
+Rel(app, rank, "Rankea")
+Rel(app, persist, "Guarda/lee")
+
+Rel(consumer, broker, "Consume eventos", "Pub/Sub")
+Rel(consumer, persist, "Registra interacción")
+
+Rel(persist, recoDb, "Lee/Escribe")
+
+note right of consumer
+  Feedback entra por eventos,
+  evita acoplar por REST directo.
+end note
+
+SHOW_LEGEND()
+@enduml

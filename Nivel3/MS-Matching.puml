@@ -1,0 +1,42 @@
+@startuml MS-Matching
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+title Bolsa de Empleo - Nivel 3 (Componentes) - MS-Matching
+
+LAYOUT_TOP_DOWN()
+skinparam wrapWidth 190
+skinparam maxMessageSize 60
+
+Container(gateway, "API Gateway / BFF", "Backend", "Entrada única")
+
+Container_Boundary(s1, "MS-Matching") {
+  Component(ctrl, "Matching Controller", "REST Controller", "Solicita cálculo de match")
+  Component(app, "Matching Application Service", "Service", "Orquesta el proceso")
+  Component(extractor, "Feature Extractor", "Component", "Extrae skills/features desde CV y oferta")
+  Component(score, "Score Calculator", "Component", "Calcula compatibilidad (%)")
+  Component(gap, "Gap Analyzer", "Component", "Detecta brechas específicas")
+  Component(explain, "Explanation Builder", "Component", "Construye razones del score")
+  Component(model, "Model / Rules Adapter", "Adapter", "Heurísticas o modelo ML")
+  Component(persist, "Persistence Adapter", "Repository", "MatchScore, GapAnalysis, MatchHistory")
+}
+
+ContainerDb(matchingDb, "matching_db", "PostgreSQL", "Scores, brechas, historial")
+
+Rel(gateway, ctrl, "Invoca", "REST")
+Rel(ctrl, app, "Usa")
+
+Rel(app, extractor, "Extrae features")
+Rel(app, model, "Embeddings/reglas (si aplica)")
+Rel(app, score, "Calcula score")
+Rel(app, gap, "Analiza brechas")
+Rel(app, explain, "Explica resultado")
+Rel(app, persist, "Guarda resultados")
+
+Rel(persist, matchingDb, "Lee/Escribe")
+
+note right of app
+  Mayor complejidad:
+  pipeline features -> score -> brechas -> explicación.
+end note
+
+SHOW_LEGEND()
+@enduml

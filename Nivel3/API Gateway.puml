@@ -1,0 +1,43 @@
+@startuml API Gateway
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+title Bolsa de Empleo - Nivel 3 (Componentes) - API Gateway
+
+LAYOUT_TOP_DOWN()
+skinparam wrapWidth 190
+skinparam maxMessageSize 60
+
+Person(candidato, "Usuario / Candidato", "Consume la API via SPA")
+
+Container(spa, "Web SPA", "React", "UI")
+Container_Boundary(gw, "API Gateway / BFF") {
+  Component(routing, "Routing Layer", "Middleware", "Enruta hacia MS-Auth, MS-CV, MS-Matching, MS-Recommendation, MS-Jobs")
+  Component(authmw, "Auth Middleware", "Middleware", "Valida JWT emitido por MS-Auth")
+  Component(ratelog, "Rate Limiting / CORS / Logging", "Middleware", "Protección, trazas y auditoria")
+  Component(proxy, "Service Proxy Layer", "HTTP Client", "Cliente interno hacia microservicios")
+  Component(errmap, "Error Mapper", "Component", "Estandariza respuestas de error")
+}
+
+Container(auth, "MS-Auth", "Microservicio", "Auth/JWT/roles")
+Container(cv, "MS-CV", "Microservicio", "CV + PDF/Word")
+Container(matching, "MS-Matching", "Microservicio", "Score + brechas")
+Container(reco, "MS-Recommendation", "Microservicio", "Ranking vacantes/cursos")
+Container(jobs, "MS-Jobs", "Microservicio", "Dominio Job")
+
+Rel(candidato, spa, "Usa", "HTTPS")
+Rel(spa, routing, "API", "HTTPS/JSON")
+
+Rel(routing, ratelog, "Pasa por")
+Rel(routing, authmw, "Pasa por (si protegido)")
+Rel(routing, proxy, "Invoca")
+
+Rel(authmw, auth, "Introspección/keys (si aplica)", "REST/JWKS")
+Rel(proxy, auth, "Rutea /auth/*", "REST")
+Rel(proxy, cv, "Rutea /cv/*", "REST")
+Rel(proxy, matching, "Rutea /matching/*", "REST")
+Rel(proxy, reco, "Rutea /reco/*", "REST")
+Rel(proxy, jobs, "Rutea /jobs/*", "REST")
+
+Rel(routing, errmap, "Normaliza errores")
+
+SHOW_LEGEND()
+@enduml

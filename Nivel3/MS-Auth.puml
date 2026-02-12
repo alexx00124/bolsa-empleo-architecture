@@ -1,0 +1,31 @@
+@startuml MS-Auth
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+title Bolsa de Empleo - Nivel 3 (Componentes) - MS-Auth
+
+LAYOUT_TOP_DOWN()
+skinparam wrapWidth 190
+skinparam maxMessageSize 60
+
+Container(gateway, "API Gateway / BFF", "Backend", "Entrada única")
+
+Container_Boundary(s1, "MS-Auth") {
+  Component(ctrl, "Auth Controller", "REST Controller", "login, register, refresh-token")
+  Component(oauth, "OAuth Adapter", "Adapter", "Integración Google OAuth")
+  Component(app, "Auth Application Service", "Service", "Orquesta login/registro")
+  Component(tokens, "Token Service", "Service", "Generación y validación JWT")
+  Component(session, "Session Store", "Component", "Refresh tokens, revocación")
+  Component(persist, "Persistence Adapter", "Repository", "UserAuth, Role, Session")
+}
+
+ContainerDb(authDb, "auth_db", "PostgreSQL", "Usuarios, roles, refresh tokens, sesiones")
+
+Rel(gateway, ctrl, "Invoca", "REST")
+Rel(ctrl, app, "Usa")
+Rel(app, oauth, "OAuth (cuando aplique)")
+Rel(app, tokens, "Genera/valida JWT")
+Rel(app, session, "Gestiona refresh/revocación")
+Rel(session, persist, "Lee/Escribe")
+Rel(persist, authDb, "Lee/Escribe")
+
+SHOW_LEGEND()
+@enduml

@@ -1,0 +1,96 @@
+@startuml Nivel 2
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Bolsa de Empleo - Nivel 2 (Contenedores) (Ordenado)
+
+' Layout limpio
+LAYOUT_TOP_DOWN()
+skinparam shadowing false
+skinparam wrapWidth 180
+skinparam maxMessageSize 60
+
+Person(candidato, "Usuario / Candidato", "Busca vacantes, postula y gestiona CV")
+
+System_Boundary(s1, "Bolsa de Empleo") {
+
+  ' ===== Capa UI =====
+  Container(spa, "Web SPA", "React", "UI de búsqueda, postulaciones, CV, recomendaciones")
+
+  ' ===== Capa Entrada =====
+  Container(gateway, "API Gateway / BFF", "Backend", "Valida JWT, rate limit, logs, ruteo")
+
+  ' ===== Capa Servicios =====
+  Container(auth, "MS-Auth", "Microservicio", "Login, registro, JWT, roles")
+  Container(cv, "MS-CV", "Microservicio", "CV + certificados, genera PDF/Word")
+  Container(jobs, "MS-Jobs", "Microservicio", "Persistencia y consulta de ofertas")
+  Container(matching, "MS-Matching", "Microservicio", "Score, brechas, análisis CV vs oferta")
+  Container(reco, "MS-Recomendación", "Microservicio", "Recomienda vacantes y cursos")
+  Container(scraping, "MS-Scraping", "Microservicio", "Integra fuentes, extrae/publica ofertas")
+
+  ' ===== Broker (centro) =====
+  ContainerQueue(broker, "Message Broker", "RabbitMQ/Kafka/Redis Streams", "Eventos entre servicios")
+
+  ' ===== Capa Datos =====
+  ContainerDb(authDb, "auth_db", "PostgreSQL", "Usuarios, roles, tokens")
+  ContainerDb(cvDb, "cv_db", "PostgreSQL", "CV, certificados, versiones")
+  ContainerDb(jobsDb, "jobs_db", "PostgreSQL", "Ofertas, salario, localización")
+  ContainerDb(matchingDb, "matching_db", "PostgreSQL", "Scores, brechas, resultados")
+  ContainerDb(recoDb, "reco_db", "PostgreSQL", "Recomendaciones, historial")
+  ContainerDb(scrapingDb, "scraping_db", "PostgreSQL", "Fuentes, estado, trazas")
+}
+
+' ===== Externos a la derecha =====
+System_Ext(linkedin, "LinkedIn", "Bolsa externa")
+System_Ext(compu, "CompuTrabajo", "Bolsa externa")
+System_Ext(storage, "Object Storage", "S3/MinIO (opcional)")
+System_Ext(wordpdf, "Motor PDF/Word", "LibreOffice/Docx/PDF (opcional)")
+
+' ===== Flujo principal (vertical) =====
+Rel(candidato, spa, "Usa", "HTTPS")
+Rel(spa, gateway, "API", "HTTPS/JSON")
+
+Rel(gateway, auth, "Auth/roles", "REST")
+Rel(gateway, cv, "CV", "REST")
+Rel(gateway, jobs, "Ofertas", "REST")
+Rel(gateway, matching, "Matching", "REST")
+Rel(gateway, reco, "Recomendación", "REST")
+Rel(gateway, scraping, "Admin scraping (opcional)", "REST")
+
+' ===== DBs abajo (vertical) =====
+Rel(auth, authDb, "Lee/Escribe")
+Rel(cv, cvDb, "Lee/Escribe")
+Rel(jobs, jobsDb, "Lee/Escribe")
+Rel(matching, matchingDb, "Lee/Escribe")
+Rel(reco, recoDb, "Lee/Escribe")
+Rel(scraping, scrapingDb, "Lee/Escribe")
+
+' ===== Externos (laterales) =====
+Rel(cv, storage, "Guarda/lee certificados", "S3 API")
+Rel(cv, wordpdf, "Genera PDF/Word", "HTTP/CLI")
+Rel(scraping, linkedin, "Extrae/Publica", "API/Scraping")
+Rel(scraping, compu, "Extrae/Publica", "API/Scraping")
+
+' ===== Eventos (solo con broker) =====
+Rel(scraping, broker, "Publica: JobFetched/JobUpdated")
+Rel(jobs, broker, "Consume Job*; Publica JobIndexed")
+Rel(cv, broker, "Publica: CVUpdated/CertificateAdded")
+Rel(matching, broker, "Consume CV* + JobIndexed; Publica MatchComputed/GapDetected")
+Rel(reco, broker, "Consume Match*; Publica RecommendationReady")
+
+' Forzar alineación por capas (evita cruces)
+Lay_Down(spa, gateway)
+Lay_Down(gateway, auth)
+Lay_Down(gateway, cv)
+Lay_Down(gateway, jobs)
+Lay_Down(gateway, matching)
+Lay_Down(gateway, reco)
+Lay_Down(gateway, scraping)
+Lay_Down(auth, authDb)
+Lay_Down(cv, cvDb)
+Lay_Down(jobs, jobsDb)
+Lay_Down(matching, matchingDb)
+Lay_Down(reco, recoDb)
+Lay_Down(scraping, scrapingDb)
+
+SHOW_LEGEND()
+@enduml

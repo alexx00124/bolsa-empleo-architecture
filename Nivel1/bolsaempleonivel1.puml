@@ -1,0 +1,20 @@
+@startuml nivel 1
+title C4 - Nivel 1 (Contexto) - Bolsa de Empleo
+
+skinparam shadowing false
+skinparam componentStyle rectangle
+
+actor "Usuario / Candidato" as candidato
+
+rectangle "Sistema: Bolsa de Empleo" as bolsa {
+}
+
+rectangle "Bolsa de empleo externa:\nLinkedIn" as linkedin
+rectangle "Bolsa de empleo externa:\nCompuTrabajo" as computrabajo
+
+candidato --> bolsa : Busca vacantes\nPostula / Gestiona perfil
+
+bolsa --> linkedin : Consulta / Publica vacantes\n(Sync o redirección)
+bolsa --> computrabajo : Consulta / Publica vacantes\n(Sync o redirección)
+
+@enduml

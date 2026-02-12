@@ -1,0 +1,46 @@
+@startuml MS-CV
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+title Bolsa de Empleo - Nivel 3 (Componentes) - MS-CV
+
+LAYOUT_TOP_DOWN()
+skinparam wrapWidth 190
+skinparam maxMessageSize 60
+
+Container(gateway, "API Gateway / BFF", "Backend", "Entrada única")
+System_Ext(storage, "Object Storage", "S3/Local/Drive")
+System_Ext(wordpdf, "Motor PDF/Word", "LibreOffice/Docx/PDF")
+System_Ext(llm, "LLM (opcional)", "Parsing/Resumen")
+
+Container_Boundary(s1, "MS-CV") {
+  Component(ctrl, "CV Controller", "REST Controller", "CRUD de CV + versionado por rol")
+  Component(app, "CV Application Service", "Service", "Lógica de creación/actualización")
+  Component(domain, "CV Domain Service", "Domain Service", "Validaciones y reglas")
+  Component(renderer, "CV Renderer", "Component", "Genera PDF/Word")
+  Component(store, "Storage Adapter", "Adapter", "Persistencia de certificados/archivos")
+  Component(ia, "IA Adapter (opcional)", "Adapter", "Parsing y resumen con LLM (no rompe flujo si falla)")
+  Component(persist, "Persistence Adapter", "Repository", "Curriculum, CurriculumVersion, Skill, Experience, Education")
+}
+
+ContainerDb(cvDb, "cv_db", "PostgreSQL", "CV, versiones, metadata")
+
+Rel(gateway, ctrl, "Invoca", "REST")
+Rel(ctrl, app, "Usa")
+Rel(app, domain, "Valida")
+Rel(app, persist, "Lee/Escribe")
+Rel(persist, cvDb, "Lee/Escribe")
+
+Rel(app, renderer, "Genera CV", "In-process")
+Rel(renderer, wordpdf, "Render PDF/Word", "HTTP/CLI")
+
+Rel(app, store, "Sube/lee certificados", "S3 API")
+Rel(store, storage, "Guardar/leer binarios", "S3/FS")
+
+Rel(app, ia, "Parsing/resumen (opcional)", "Async/in-process")
+Rel(ia, llm, "Prompt/Completion", "API")
+note right of ia
+  Regla: si falla IA,
+  el flujo base sigue normal.
+end note
+
+SHOW_LEGEND()
+@enduml

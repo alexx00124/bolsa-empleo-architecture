@@ -1,0 +1,46 @@
+@startuml MS-Scraping
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+title Bolsa de Empleo - Nivel 3 (Componentes) - MS-Scraping
+
+LAYOUT_TOP_DOWN()
+skinparam wrapWidth 190
+skinparam maxMessageSize 60
+
+ContainerQueue(broker, "Message Broker", "RabbitMQ/Kafka/Redis Streams", "Entrega a MS-Jobs por eventos")
+System_Ext(linkedin, "LinkedIn", "Fuente externa")
+System_Ext(compu, "CompuTrabajo", "Fuente externa")
+
+Container_Boundary(s1, "MS-Scraping") {
+  Component(orq, "Scraping Orchestrator", "Scheduler", "Agenda tareas (cron/queue)")
+  Component(conn, "Source Connectors", "Adapters", "Un conector por plataforma")
+  Component(fetch, "HTTP Fetcher", "Component", "Requests, retry, rate limiting")
+  Component(parser, "Parser / Extractor", "Component", "HTML/JSON -> RawJobPosting")
+  Component(cache, "Seen Cache", "Component", "Evita reprocesar links")
+  Component(delivery, "Delivery Adapter", "Adapter", "Publica hacia MS-Jobs (queue o batch)")
+  Component(logger, "Scraping Run Logger", "Component", "Métricas, errores, trazas")
+  Component(persist, "Persistence Adapter (ligero)", "Repository", "ScrapedLink, JobRaw, ScrapingRun")
+}
+
+ContainerDb(scrapingDb, "scraping_db", "PostgreSQL", "Estado y trazas")
+
+Rel(orq, conn, "Orquesta")
+Rel(conn, fetch, "Usa")
+Rel(fetch, linkedin, "GET/POST", "HTTP")
+Rel(fetch, compu, "GET/POST", "HTTP")
+
+Rel(conn, parser, "Entrega payload")
+Rel(parser, cache, "Marca vistos")
+Rel(parser, persist, "Guarda raw/trazas")
+Rel(persist, scrapingDb, "Lee/Escribe")
+
+Rel(delivery, broker, "Publica JobFetched/JobUpdated", "Pub/Sub")
+Rel(logger, persist, "Registra métricas")
+Rel(orq, logger, "Reporta run")
+
+note right of delivery
+  Regla: Scraping NO es dueño de Job.
+  Solo ingesta y entrega raw.
+end note
+
+SHOW_LEGEND()
+@enduml

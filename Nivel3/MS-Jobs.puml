@@ -1,0 +1,49 @@
+@startuml  MS-Jobs
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+title Bolsa de Empleo - Nivel 3 (Componentes) - MS-Jobs
+
+LAYOUT_TOP_DOWN()
+skinparam wrapWidth 190
+skinparam maxMessageSize 60
+
+Container(gateway, "API Gateway / BFF", "Backend", "Entrada única")
+ContainerQueue(broker, "Message Broker", "RabbitMQ/Kafka/Redis Streams", "Ingesta via eventos")
+System_Ext(search, "Search Engine (opcional)", "OpenSearch/Elastic")
+
+Container_Boundary(s1, "MS-Jobs") {
+  Component(ctrl, "Jobs Controller", "REST Controller", "Búsqueda, filtros, detalle")
+  Component(app, "Jobs Application Service", "Service", "Orquesta consultas y actualizaciones")
+  Component(ingest, "Ingestion Adapter", "Adapter", "Recibe batch/eventos desde MS-Scraping")
+  Component(norm, "Normalization Service", "Domain Service", "Estandariza datos de oferta")
+  Component(dedupe, "Deduplication Service", "Domain Service", "Evita duplicados por source_job_id o hash")
+  Component(expire, "Expiration Service", "Service", "Marca ofertas vencidas")
+  Component(searchA, "Search Adapter", "Adapter", "Consulta DB o motor de búsqueda")
+  Component(persist, "Persistence Adapter", "Repository", "Job, JobSource, Profession, JobTag")
+}
+
+ContainerDb(jobsDb, "jobs_db", "PostgreSQL", "Dominio Job")
+
+Rel(gateway, ctrl, "Invoca", "REST")
+Rel(ctrl, app, "Usa")
+Rel(app, searchA, "Buscar/filtrar")
+Rel(searchA, persist, "Lee")
+Rel(app, persist, "Lee/Escribe")
+
+Rel(ingest, broker, "Consume JobFetched/JobUpdated", "Pub/Sub")
+Rel(ingest, app, "Entrega raw/batch", "In-process")
+
+Rel(app, norm, "Normaliza (dueño del dominio)")
+Rel(app, dedupe, "Deduplica")
+Rel(app, expire, "Expira")
+
+Rel(persist, jobsDb, "Lee/Escribe")
+Rel(searchA, search, "Index/Query (opcional)", "HTTP")
+
+note right of norm
+  Regla: MS-Jobs es dueño de Job.
+  Normalización final va aquí,
+  no en Scraping.
+end note
+
+SHOW_LEGEND()
+@enduml
