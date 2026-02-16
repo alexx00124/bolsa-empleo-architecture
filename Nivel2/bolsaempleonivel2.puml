@@ -1,9 +1,8 @@
 @startuml Nivel 2
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
 
-title Bolsa de Empleo - Nivel 2 (Contenedores) (Ordenado)
+title Bolsa de Empleo - Nivel 2 (Contenedores) (DB unica)
 
-' Layout limpio
 LAYOUT_TOP_DOWN()
 skinparam shadowing false
 skinparam wrapWidth 180
@@ -21,31 +20,26 @@ System_Boundary(s1, "Bolsa de Empleo") {
 
   ' ===== Capa Servicios =====
   Container(auth, "MS-Auth", "Microservicio", "Login, registro, JWT, roles")
-  Container(cv, "MS-CV", "Microservicio", "CV + certificados, genera PDF/Word")
+  Container(cv, "MS-CV", "Microservicio", "Gestión hoja de vida, CV")
   Container(jobs, "MS-Jobs", "Microservicio", "Persistencia y consulta de ofertas")
   Container(matching, "MS-Matching", "Microservicio", "Score, brechas, análisis CV vs oferta")
-  Container(reco, "MS-Recomendación", "Microservicio", "Recomienda vacantes y cursos")
+  Container(reco, "MS-Recomendación", "Microservicio", "Recomienda vacantes y plan de estudio")
   Container(scraping, "MS-Scraping", "Microservicio", "Integra fuentes, extrae/publica ofertas")
 
-  ' ===== Broker (centro) =====
+  ' ===== Broker =====
   ContainerQueue(broker, "Message Broker", "RabbitMQ/Kafka/Redis Streams", "Eventos entre servicios")
 
-  ' ===== Capa Datos =====
-  ContainerDb(authDb, "auth_db", "PostgreSQL", "Usuarios, roles, tokens")
-  ContainerDb(cvDb, "cv_db", "PostgreSQL", "CV, certificados, versiones")
-  ContainerDb(jobsDb, "jobs_db", "PostgreSQL", "Ofertas, salario, localización")
-  ContainerDb(matchingDb, "matching_db", "PostgreSQL", "Scores, brechas, resultados")
-  ContainerDb(recoDb, "reco_db", "PostgreSQL", "Recomendaciones, historial")
-  ContainerDb(scrapingDb, "scraping_db", "PostgreSQL", "Fuentes, estado, trazas")
+  ' ===== Capa Datos (UNICA) =====
+  ContainerDb(mainDb, "bolsa_empleo_db", "PostgreSQL", "Autenticación, CV, ofertas, matching y recomendaciones")
 }
 
-' ===== Externos a la derecha =====
+' ===== Externos =====
 System_Ext(linkedin, "LinkedIn", "Bolsa externa")
 System_Ext(compu, "CompuTrabajo", "Bolsa externa")
 System_Ext(storage, "Object Storage", "S3/MinIO (opcional)")
 System_Ext(wordpdf, "Motor PDF/Word", "LibreOffice/Docx/PDF (opcional)")
 
-' ===== Flujo principal (vertical) =====
+' ===== Flujo principal =====
 Rel(candidato, spa, "Usa", "HTTPS")
 Rel(spa, gateway, "API", "HTTPS/JSON")
 
@@ -56,28 +50,28 @@ Rel(gateway, matching, "Matching", "REST")
 Rel(gateway, reco, "Recomendación", "REST")
 Rel(gateway, scraping, "Admin scraping (opcional)", "REST")
 
-' ===== DBs abajo (vertical) =====
-Rel(auth, authDb, "Lee/Escribe")
-Rel(cv, cvDb, "Lee/Escribe")
-Rel(jobs, jobsDb, "Lee/Escribe")
-Rel(matching, matchingDb, "Lee/Escribe")
-Rel(reco, recoDb, "Lee/Escribe")
-Rel(scraping, scrapingDb, "Lee/Escribe")
+' ===== DB unica =====
+Rel(auth, mainDb, "Lee/Escribe")
+Rel(cv, mainDb, "Lee/Escribe")
+Rel(jobs, mainDb, "Lee/Escribe")
+Rel(matching, mainDb, "Lee/Escribe")
+Rel(reco, mainDb, "Lee/Escribe")
+Rel(scraping, mainDb, "Lee/Escribe")
 
-' ===== Externos (laterales) =====
+' ===== Externos =====
 Rel(cv, storage, "Guarda/lee certificados", "S3 API")
 Rel(cv, wordpdf, "Genera PDF/Word", "HTTP/CLI")
 Rel(scraping, linkedin, "Extrae/Publica", "API/Scraping")
 Rel(scraping, compu, "Extrae/Publica", "API/Scraping")
 
-' ===== Eventos (solo con broker) =====
+' ===== Eventos =====
 Rel(scraping, broker, "Publica: JobFetched/JobUpdated")
 Rel(jobs, broker, "Consume Job*; Publica JobIndexed")
-Rel(cv, broker, "Publica: CVUpdated/CertificateAdded")
+Rel(cv, broker, "Publica: CVUpdated")
 Rel(matching, broker, "Consume CV* + JobIndexed; Publica MatchComputed/GapDetected")
 Rel(reco, broker, "Consume Match*; Publica RecommendationReady")
 
-' Forzar alineación por capas (evita cruces)
+' ===== Alineación por capas =====
 Lay_Down(spa, gateway)
 Lay_Down(gateway, auth)
 Lay_Down(gateway, cv)
@@ -85,12 +79,13 @@ Lay_Down(gateway, jobs)
 Lay_Down(gateway, matching)
 Lay_Down(gateway, reco)
 Lay_Down(gateway, scraping)
-Lay_Down(auth, authDb)
-Lay_Down(cv, cvDb)
-Lay_Down(jobs, jobsDb)
-Lay_Down(matching, matchingDb)
-Lay_Down(reco, recoDb)
-Lay_Down(scraping, scrapingDb)
+
+Lay_Down(auth, mainDb)
+Lay_Down(cv, mainDb)
+Lay_Down(jobs, mainDb)
+Lay_Down(matching, mainDb)
+Lay_Down(reco, mainDb)
+Lay_Down(scraping, mainDb)
 
 SHOW_LEGEND()
 @enduml
