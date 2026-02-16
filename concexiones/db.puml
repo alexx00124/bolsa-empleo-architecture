@@ -1,0 +1,121 @@
+@startuml db
+' ====== ERD estilo "tabla" ======
+hide circle
+hide methods
+skinparam shadowing false
+skinparam linetype ortho
+skinparam roundcorner 6
+skinparam dpi 160
+
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #B8C6D6
+  ArrowColor #7E8B99
+  FontColor #1F2A37
+}
+
+skinparam classHeaderBackgroundColor #2F6F9E
+skinparam classHeaderFontColor #FFFFFF
+skinparam classAttributeFontColor #111827
+
+left to right direction
+
+' ====== TABLAS ======
+class autenticacion <<Table>> {
+  + id : uuid <<PK>>
+  --
+  email : varchar <<NN, UQ>>
+  contrasenia_incritada : varchar <<NN>>
+  rol : varchar <<NN>>
+  tipo_documento : varchar <<NN>>
+  numero_documento : varchar <<NN, UQ>>
+  nombres : varchar <<NN>>
+  apellidos : varchar <<NN>>
+}
+
+note right of autenticacion
+  rol: estudiante | funcionario
+  tipo_documento: CC | CE | TI | PAS
+end note
+
+
+class hoja_de_vida <<Table>> {
+  + id : uuid <<PK>>
+  usuario_id : uuid <<FK, NN>>
+  --
+  titulo_profesional : varchar
+  resumen_profesional : text
+  telefono : varchar
+  email_contacto : varchar
+  pais : varchar
+  ciudad : varchar
+  portafolio : varchar
+  anios_experiencia : int
+  nivel_educativo : varchar
+  habilidades : varchar
+  experiencia : varchar
+  educacion : varchar
+  certificaciones : varchar
+  proyectos : varchar
+}
+
+class analisis_coincidencia <<Table>> {
+  + id : uuid <<PK>>
+  usuario_id : uuid <<FK, NN>>
+  hoja_vida_id : uuid <<FK, NN>>
+  trabajo_id : uuid <<FK, NN>>
+  --
+  puntaje : numeric <<NN>>
+}
+
+class recomendacion <<Table>> {
+  + id : uuid <<PK>>
+  usuario_id : uuid <<FK, NN>>
+  analisis_coincidencia_id : uuid <<FK, NN, UQ>>
+  --
+  plan_estudio : text <<NN>>
+  recursos : jsonb
+  duracion_semanas : int
+  fecha_creacion : timestamptz
+}
+
+class trabajos <<Table>> {
+  + id : uuid <<PK>>
+  --
+  titulo : varchar <<NN>>
+  descripcion : text <<NN>>
+  empresa : varchar <<NN>>
+  ubicacion : varchar
+  modalidad : varchar
+  salario_min : numeric
+  salario_max : numeric
+  requisitos : jsonb
+  habilidades_clave : jsonb
+  fuente : varchar
+  url_original : varchar
+  scraping_id : uuid
+  activo : boolean <<NN>>
+  fecha_creacion : timestamptz
+  actualizado_en : timestamptz
+}
+
+note right of trabajos
+  modalidad: presencial | remoto | hibrido
+  activo default: true
+end note
+
+' ====== RELACIONES (FK) ======
+hoja_de_vida --> autenticacion : usuario_id -> id
+analisis_coincidencia --> autenticacion : usuario_id -> id
+analisis_coincidencia --> hoja_de_vida : hoja_vida_id -> id
+analisis_coincidencia --> trabajos : trabajo_id -> id
+recomendacion --> autenticacion : usuario_id -> id
+recomendacion --> analisis_coincidencia : analisis_coincidencia_id -> id
+
+' ====== LAYOUT (como tu imagen) ======
+autenticacion -down[hidden]-> recomendacion
+autenticacion -right[hidden]-> analisis_coincidencia
+analisis_coincidencia -right[hidden]-> hoja_de_vida
+hoja_de_vida -down[hidden]-> trabajos
+
+@enduml
